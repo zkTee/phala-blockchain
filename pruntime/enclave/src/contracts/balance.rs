@@ -25,6 +25,16 @@ pub struct Balance {
     queue: Vec<TransferData>,
     #[serde(skip)]
     secret: Option<SecretKey>,
+    history: BTreeMap<AccountIdWrapper, Vec<AssetsTx>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AssetsTx {
+    txref: TxRef,
+    from: AccountIdWrapper,
+    to: AccountIdWrapper,
+    #[serde(with = "super::serde_balance")]
+    amount: chain::Balance,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -54,6 +64,9 @@ pub enum Request {
     },
     TotalIssuance,
     PendingChainTransfer { sequence: SequenceType },
+    History {
+        account: AccountIdWrapper
+    },
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[derive(Encode, Decode)]
@@ -81,6 +94,9 @@ pub enum Response {
     PendingChainTransfer {
         transfer_queue_b64: String,
     },
+    History {
+        history: Vec<AssetsTx>
+    },
     Error(Error)
 }
 
@@ -96,6 +112,7 @@ impl Balance {
             sequence: 0,
             queue: Vec::new(),
             secret,
+            history: Default::default()
         }
     }
 }
@@ -103,7 +120,7 @@ impl Balance {
 impl contracts::Contract<Command, Request, Response> for Balance {
     fn id(&self) -> contracts::ContractId { contracts::BALANCE }
 
-    fn handle_command(&mut self, origin: &chain::AccountId, _txref: &TxRef, cmd: Command) -> TransactionStatus {
+    fn handle_command(&mut self, origin: &chain::AccountId, txref: &TxRef, cmd: Command) -> TransactionStatus {
         let status = match cmd {
             Command::Transfer {dest, value} => {
                 let o = AccountIdWrapper(origin.clone());
@@ -118,11 +135,28 @@ impl contracts::Contract<Command, Request, Response> for Balance {
                             dest0 = *dest_amount;
                             *dest_amount += value;
                         } else {
-                            self.accounts.insert(dest, value);
+                            self.accounts.insert(dest.clone(), value);
                         }
 
                         println!("   src: {:>20} -> {:>20}", src0, src0 - value);
                         println!("  dest: {:>20} -> {:>20}", dest0, dest0 + value);
+
+                        let tx = AssetsTx {
+                            txref: txref.clone(),
+                            from: o.clone(),
+                            to: dest.clone(),
+                            amount: value
+                        };
+                        if is_tracked(&o) {
+                            let slot = self.history.entry(o).or_default();
+                            slot.push(tx.clone());
+                            println!(" pushed history (src)");
+                        }
+                        if is_tracked(&dest) {
+                            let slot = self.history.entry(dest).or_default();
+                            slot.push(tx.clone());
+                            println!(" pushed history (dest)");
+                        }
 
                         TransactionStatus::Ok
                     } else {
@@ -175,7 +209,7 @@ impl contracts::Contract<Command, Request, Response> for Balance {
                 } else {
                     TransactionStatus::NoBalance
                 }
-            }
+            },
         };
 
         status
@@ -202,7 +236,11 @@ impl contracts::Contract<Command, Request, Response> for Balance {
                 },
                 Request::TotalIssuance => {
                     Ok(Response::TotalIssuance { total_issuance: self.total_issuance })
-                }
+                },
+                Request::History { account } => {
+                    let tx_list = self.history.get(&account).cloned().unwrap_or(Default::default());
+                    Ok(Response::History { history: tx_list })
+                },
             }
         };
         match inner() {
@@ -237,4 +275,29 @@ impl contracts::Contract<Command, Request, Response> for Balance {
             }
         }
     }
+}
+
+const PK_ADMIN_LINYIN: &'static str = "765c26eee0e63741b3e305ab7f69c0d908afc3617ce6eb09d57610f1cdcdc922";
+const PK_TEST1: &'static str = "f2caebe9f1719e6b27d24ac59a8abb7be4b55018315f4cd396a5f19cfe20f05a";
+const PK_TEST2: &'static str = "6ed71c5903cfcfb7dd03687e0179d7bda92e3eee7734bdaff49a4df1f8f92911";
+
+use lazy_static::lazy_static;
+
+lazy_static! {
+    static ref TRACKED_ACCOUNTS: Vec<AccountIdWrapper> = {
+        vec![
+            AccountIdWrapper::from_hex(PK_ADMIN_LINYIN),
+            AccountIdWrapper::from_hex(PK_TEST1),
+            AccountIdWrapper::from_hex(PK_TEST2),
+        ]
+    };
+}
+
+fn is_tracked(id: &AccountIdWrapper) -> bool {
+    for whitelisted_id in (*TRACKED_ACCOUNTS).iter() {
+        if whitelisted_id == id {
+            return true;
+        }
+    }
+    false
 }

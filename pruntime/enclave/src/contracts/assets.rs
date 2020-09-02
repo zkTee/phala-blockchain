@@ -312,6 +312,27 @@ impl contracts::Contract<Command, Request, Response> for Assets {
     }
 }
 
-fn is_tracked(_id: &AccountIdWrapper) -> bool {
+const PK_ADMIN_LINYIN: &'static str = "765c26eee0e63741b3e305ab7f69c0d908afc3617ce6eb09d57610f1cdcdc922";
+const PK_TEST1: &'static str = "f2caebe9f1719e6b27d24ac59a8abb7be4b55018315f4cd396a5f19cfe20f05a";
+const PK_TEST2: &'static str = "6ed71c5903cfcfb7dd03687e0179d7bda92e3eee7734bdaff49a4df1f8f92911";
+
+use lazy_static::lazy_static;
+
+lazy_static! {
+    static ref TRACKED_ACCOUNTS: Vec<AccountIdWrapper> = {
+        vec![
+            AccountIdWrapper::from_hex(PK_ADMIN_LINYIN),
+            AccountIdWrapper::from_hex(PK_TEST1),
+            AccountIdWrapper::from_hex(PK_TEST2),
+        ]
+    };
+}
+
+fn is_tracked(id: &AccountIdWrapper) -> bool {
+    for whitelisted_id in (*TRACKED_ACCOUNTS).iter() {
+        if whitelisted_id == id {
+            return true;
+        }
+    }
     false
 }

@@ -728,7 +728,7 @@ pub extern "C" fn ecall_handle(
             })
         }
     };
-    println!("{}", output_json.to_string());
+    // println!("{}", output_json.to_string());
 
     let output_json_vec = serde_json::to_vec(&output_json).unwrap();
     let output_json_vec_len = output_json_vec.len();
@@ -830,14 +830,16 @@ fn init_runtime(input: InitRuntimeReq) -> Result<Value, Value> {
     println!("Machine id: {:?}", &machine_id);
 
     // Generate identity
-    let mut prng = rand::rngs::OsRng::default();
-    let sk = SecretKey::random(&mut prng);
+    let id_raw_key = hex::decode_hex("0000000000000000000000000000000000000000000000000000000000000001");
+    let sk = SecretKey::parse_slice(&id_raw_key).expect("Cannot create identity key");
+    // let mut prng = rand::rngs::OsRng::default();
+    // let sk = SecretKey::random(&mut prng);
     let pk = PublicKey::from_secret_key(&sk);
     let serialized_pk = pk.serialize_compressed();
     let s_pk = hex::encode_hex_compact(serialized_pk.as_ref());
 
     // ECDH identity
-    let raw_key = hex::decode_hex("e71f37bc68ad82ec70ddf75ee787bccbb1b70e7293f710faee042f97db8a3ba3");
+    let raw_key = hex::decode_hex("0000000000000000000000000000000000000000000000000000000000000001");
     let ecdh_sk = ecdh::create_key(raw_key.as_slice()).expect("can't create ecdh key");
     let ecdh_pk = ecdh_sk.compute_public_key().expect("can't compute pubkey");
     let s_ecdh_pk = hex::encode_hex_compact(ecdh_pk.as_ref());
@@ -1288,20 +1290,21 @@ fn query(q: types::SignedQuery) -> Result<Value, Value> {
     }
     // Load and decrypt if necessary
     let payload: types::Payload = serde_json::from_slice(payload_data)
-        .expect("Failed to decode payload");
+        .map_err(|_| error_msg("Failed to decode payload"))?;
     let (msg, secret, pubkey) = {
         let local_state = LOCAL_STATE.lock().unwrap();
-        let ecdh_privkey = local_state.ecdh_private_key.as_ref().expect("ECDH not initizlied");
+        let ecdh_privkey = local_state.ecdh_private_key.as_ref().ok_or_else(|| error_msg("ECDH not initizlied"))?;
         match payload {
             types::Payload::Plain(data) => (data.into_bytes(), None, None),
             types::Payload::Cipher(cipher) => {
-                println!("cipher: {:?}", cipher);
-                let result = cryptography::decrypt(&cipher, ecdh_privkey).expect("Decrypt failed");
+                // println!("cipher: {:?}", cipher);
+                let result = cryptography::decrypt(&cipher, ecdh_privkey)
+                    .map_err(|_| error_msg("Decrypt failed"))?;
                 (result.msg, Some(result.secret), local_state.ecdh_public_key.clone())
             }
         }
     };
-    println!("msg: {}", String::from_utf8_lossy(&msg));
+    // println!("msg: {}", String::from_utf8_lossy(&msg));
     let opaque_query: types::OpaqueQuery = serde_json::from_slice(&msg)
         .map_err(|_| error_msg("Malformed request (Query)"))?;
     // Origin

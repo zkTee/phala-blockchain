@@ -254,7 +254,7 @@ fn init_enclave() -> SgxResult<SgxEnclave> {
 
 #[post("/test", format = "json", data = "<contract_input>")]
 fn test(contract_input: Json<ContractInput>) -> JsonValue {
-    println!("{}", ::serde_json::to_string_pretty(&*contract_input).unwrap());
+    // println!("{}", ::serde_json::to_string_pretty(&*contract_input).unwrap());
 
     let eid = get_eid();
     let mut retval = sgx_status_t::SGX_SUCCESS;
@@ -295,7 +295,7 @@ fn test(contract_input: Json<ContractInput>) -> JsonValue {
 
 #[post("/init_runtime", format = "json", data = "<contract_input>")]
 fn init_runtime(contract_input: Json<ContractInput>) -> JsonValue {
-    println!("{}", ::serde_json::to_string_pretty(&*contract_input).unwrap());
+    // println!("{}", ::serde_json::to_string_pretty(&*contract_input).unwrap());
 
     let eid = get_eid();
     let mut retval = sgx_status_t::SGX_SUCCESS;
@@ -336,7 +336,7 @@ fn init_runtime(contract_input: Json<ContractInput>) -> JsonValue {
 
 #[post("/get_info", format = "json", data = "<contract_input>")]
 fn get_info(contract_input: Json<ContractInput>) -> JsonValue {
-    println!("{}", ::serde_json::to_string_pretty(&*contract_input).unwrap());
+    // println!("{}", ::serde_json::to_string_pretty(&*contract_input).unwrap());
 
     let eid = get_eid();
     let mut retval = sgx_status_t::SGX_SUCCESS;
@@ -377,7 +377,7 @@ fn get_info(contract_input: Json<ContractInput>) -> JsonValue {
 
 #[post("/dump_states", format = "json", data = "<contract_input>")]
 fn dump_states(contract_input: Json<ContractInput>) -> JsonValue {
-    println!("{}", ::serde_json::to_string_pretty(&*contract_input).unwrap());
+    // println!("{}", ::serde_json::to_string_pretty(&*contract_input).unwrap());
 
     let eid = get_eid();
     let mut retval = sgx_status_t::SGX_SUCCESS;
@@ -418,7 +418,7 @@ fn dump_states(contract_input: Json<ContractInput>) -> JsonValue {
 
 #[post("/load_states", format = "json", data = "<contract_input>")]
 fn load_states(contract_input: Json<ContractInput>) -> JsonValue {
-    println!("{}", ::serde_json::to_string_pretty(&*contract_input).unwrap());
+    // println!("{}", ::serde_json::to_string_pretty(&*contract_input).unwrap());
 
     let eid = get_eid();
     let mut retval = sgx_status_t::SGX_SUCCESS;
@@ -459,7 +459,7 @@ fn load_states(contract_input: Json<ContractInput>) -> JsonValue {
 
 #[post("/sync_block", format = "json", data = "<contract_input>")]
 fn sync_block(contract_input: Json<ContractInput>) -> JsonValue {
-    println!("{}", ::serde_json::to_string_pretty(&*contract_input).unwrap());
+    // println!("{}", ::serde_json::to_string_pretty(&*contract_input).unwrap());
 
     let eid = get_eid();
     let mut retval = sgx_status_t::SGX_SUCCESS;
@@ -500,7 +500,7 @@ fn sync_block(contract_input: Json<ContractInput>) -> JsonValue {
 
 #[post("/query", format = "json", data = "<contract_input>")]
 fn query(contract_input: Json<ContractInput>) -> JsonValue {
-    println!("{}", ::serde_json::to_string_pretty(&*contract_input).unwrap());
+    // println!("{}", ::serde_json::to_string_pretty(&*contract_input).unwrap());
 
     let eid = get_eid();
     let mut retval = sgx_status_t::SGX_SUCCESS;
@@ -542,7 +542,7 @@ fn query(contract_input: Json<ContractInput>) -> JsonValue {
 
 #[post("/set", format = "json", data = "<contract_input>")]
 fn set(contract_input: Json<ContractInput>) -> JsonValue {
-    println!("{}", ::serde_json::to_string_pretty(&*contract_input).unwrap());
+    // println!("{}", ::serde_json::to_string_pretty(&*contract_input).unwrap());
 
     let eid = get_eid();
     let mut retval = sgx_status_t::SGX_SUCCESS;
@@ -584,7 +584,7 @@ fn set(contract_input: Json<ContractInput>) -> JsonValue {
 
 #[post("/get", format = "json", data = "<contract_input>")]
 fn get(contract_input: Json<ContractInput>) -> JsonValue {
-    println!("{}", ::serde_json::to_string_pretty(&*contract_input).unwrap());
+    // println!("{}", ::serde_json::to_string_pretty(&*contract_input).unwrap());
 
     let eid = get_eid();
     let mut retval = sgx_status_t::SGX_SUCCESS;
