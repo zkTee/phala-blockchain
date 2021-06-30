@@ -5,11 +5,9 @@ use log::info;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
 
+use enclave_api::blocks::StorageKV;
 use parity_scale_codec::{Decode, Encode, Error as DecodeError, FullCodec};
-use phala_types::{
-    pruntime::StorageKV, BlockRewardInfo, SignedWorkerMessage, WorkerMessagePayload,
-    WorkerStateEnum,
-};
+use phala_types::{BlockRewardInfo, SignedWorkerMessage, WorkerMessagePayload, WorkerStateEnum};
 use sp_core::{ecdsa, hashing::blake2_256, storage::StorageKey, U256};
 
 use phala_pallets::pallet_phala as phala;

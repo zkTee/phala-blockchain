@@ -9,9 +9,6 @@ use sp_core::U256;
 #[cfg(feature = "enable_serde")]
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "pruntime")]
-pub mod pruntime;
-
 // Messages: Phase Wallet
 
 #[derive(Encode, Decode)]

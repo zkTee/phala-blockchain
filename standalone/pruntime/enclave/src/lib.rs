@@ -57,13 +57,8 @@ use crate::contracts::Contract as _;
 use enclave_api::actions::*;
 use phala_mq::{MessageDispatcher, MessageOrigin, MessageSendQueue};
 use phala_pallets::{pallet_mq, pallet_phala as phala};
-use phala_types::{
-    pruntime::{
-        BlockHeaderWithEvents as GenericBlockHeaderWithEvents, HeaderToSync as GenericHeaderToSync,
-        StorageKV,
-    },
-    PRuntimeInfo, WorkerInfo,
-};
+use phala_types::{PRuntimeInfo, WorkerInfo};
+use enclave_api::blocks::{BlockHeaderWithEvents, HeaderToSync, StorageKV};
 
 mod cert;
 mod contracts;
@@ -87,13 +82,6 @@ use std::collections::VecDeque;
 use system::{CommandIndex, TransactionReceipt, TransactionStatus};
 use trie_storage::TrieStorage;
 use types::{Error, TxRef};
-
-type HeaderToSync =
-    GenericHeaderToSync<chain::BlockNumber, <chain::Runtime as frame_system::Config>::Hashing>;
-type BlockHeaderWithEvents = GenericBlockHeaderWithEvents<
-    chain::BlockNumber,
-    <chain::Runtime as frame_system::Config>::Hashing,
->;
 
 type RuntimeHasher = <chain::Runtime as frame_system::Config>::Hashing;
 type Storage = TrieStorage<RuntimeHasher>;
