@@ -107,7 +107,7 @@ pub(super) struct Gatekeeper<MsgChan> {
 
 impl<MsgChan> Gatekeeper<MsgChan>
 where
-    MsgChan: MessageChannel,
+    MsgChan: MessageChannel<Signer = sr25519::Pair>,
 {
     pub fn new(
         identity_key: sr25519::Pair,
@@ -313,7 +313,7 @@ struct GKMessageProcesser<'a, MsgChan> {
 
 impl<MsgChan> GKMessageProcesser<'_, MsgChan>
 where
-    MsgChan: MessageChannel,
+    MsgChan: MessageChannel<Signer = sr25519::Pair>,
 {
     fn process(&mut self) {
         self.prepare();
@@ -879,19 +879,22 @@ mod tokenomic {
 
 mod msg_trait {
     use parity_scale_codec::Encode;
-    use phala_mq::{BindTopic, MessageSendQueue, SenderId};
+    use phala_mq::{BindTopic, MessageSendQueue, MessageSigner, SenderId};
 
     pub trait MessageChannel {
+        type Signer;
         fn push_message<M: Encode + BindTopic>(&self, message: M);
         fn set_dummy(&self, dummy: bool);
         fn create(
             send_mq: &MessageSendQueue,
             sender: SenderId,
-            signer: sp_core::sr25519::Pair,
+            signer: Self::Signer,
         ) -> Self;
     }
 
-    impl MessageChannel for phala_mq::MessageChannel<sp_core::sr25519::Pair> {
+    impl<T: MessageSigner> MessageChannel for phala_mq::MessageChannel<T> {
+        type Signer = T;
+
         fn push_message<M: Encode + BindTopic>(&self, message: M) {
             self.send(&message);
         }
@@ -903,7 +906,7 @@ mod msg_trait {
         fn create(
             send_mq: &MessageSendQueue,
             sender: SenderId,
-            signer: sp_core::sr25519::Pair,
+            signer: Self::Signer,
         ) -> Self {
             send_mq.channel(sender, signer)
         }
@@ -971,6 +974,8 @@ pub mod tests {
     }
 
     impl MessageChannel for CollectChannel {
+        type Signer = sp_core::sr25519::Pair;
+
         fn push_message<M: Encode + BindTopic>(&self, message: M) {
             let message = Message {
                 sender: MessageOrigin::Gatekeeper,
@@ -985,7 +990,7 @@ pub mod tests {
         fn create(
             send_mq: &phala_mq::MessageSendQueue,
             sender: phala_mq::SenderId,
-            signer: sp_core::sr25519::Pair,
+            signer: Self::Signer,
         ) -> Self {
             panic!("We don't need this")
         }
