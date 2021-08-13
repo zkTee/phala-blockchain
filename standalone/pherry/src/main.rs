@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use log::{debug, error, info, warn};
+use phactory_api::crypto::CertificateBody;
 use phala_pallets::registry::Attestation;
 use sp_core::crypto::AccountId32;
 use std::cmp;
@@ -671,6 +672,98 @@ async fn init_runtime(
             is_parachain,
         ))
         .await?;
+
+    // Test contract query RPC
+    {
+        use codec::Encode;
+        use phactory_api::crypto::EncryptedData;
+        use phala_crypto::sr25519::KDF;
+        use phala_types::contract;
+
+        // Types are copied from the contract code in pruntime. Contracts should be defined in a seperate crate in the future.
+        type Balance = u128;
+        #[derive(Encode, Decode, Debug, Clone)]
+        pub enum Request {
+            FreeBalance,
+            TotalIssuance,
+        }
+
+        #[derive(Encode, Decode, Debug)]
+        pub enum Response {
+            FreeBalance { balance: Balance },
+            TotalIssuance { total_issuance: Balance },
+            Error(String),
+        }
+
+        // 1. Create the contract defined query data.
+        let data = Request::TotalIssuance;
+
+        // 2. Make ContractQuery
+        let id = contract::id256(contract::BALANCES);
+        let nonce = [1; 32]; // NOTE: You should generate a random nonce.
+        let head = contract::ContractQueryHead { id, nonce };
+        let query = contract::ContractQuery { head, data };
+        info!("query = {:?}", query);
+
+        // 3. Encrypt the ContractQuery.
+
+        let ecdh_key = sp_core::sr25519::Pair::generate().0.derive_ecdh_key().unwrap();
+
+        let remote_pubkey = resp.decode_ecdh_public_key()?;
+        let iv = [1; 12]; // NOTE: You should generate a random iv;
+        let encrypted_data =
+            EncryptedData::encrypt(&ecdh_key, &remote_pubkey.0, iv, &query.encode()).unwrap();
+
+        // 4. Sign the encrypted data.
+        // 4.1 Make the root certificate.
+        let (root_key, _) = sp_core::sr25519::Pair::generate();
+        let root_cert_body = CertificateBody {
+            pubkey: root_key.public().to_vec(), ttl: u32::MAX, config_bits: 0
+        };
+        let root_cert = prpc::Certificate::new(root_cert_body, None);
+        info!("root_key = {:?}", root_key.public().0);
+
+        // 4.2 Generate a temporary key pair and sign it with root key.
+        let (key_g, _) = sp_core::sr25519::Pair::generate();
+        info!("key_g = {:?}", key_g.public().0);
+
+        let data_cert_body = CertificateBody {
+            pubkey: key_g.public().to_vec(), ttl: u32::MAX, config_bits: 0
+        };
+        let cert_signature = prpc::Signature {
+            signed_by: Some(Box::new(root_cert)),
+            signature_type: prpc::SignatureType::Sr25519 as _,
+            signature: root_key.sign(&data_cert_body.encode()).0.to_vec(),
+        };
+        let data_cert = prpc::Certificate::new(data_cert_body, Some(Box::new(cert_signature)));
+        let data_signature = prpc::Signature {
+            signed_by: Some(Box::new(data_cert)),
+            signature_type: prpc::SignatureType::Sr25519 as _,
+            signature: key_g.sign(&encrypted_data.encode()).0.to_vec(),
+        };
+
+        info!("signature = {:?}", data_signature);
+        let request = prpc::ContractQueryRequest::new(encrypted_data, Some(data_signature));
+        info!("request = {:?}", request);
+
+        // 5. Do the RPC call.
+        let response = pr
+            .contract_query(request)
+            .await
+            .unwrap();
+
+        info!("raw response = {:?}", response);
+        // 6. Decrypt the response.
+        let encrypted_data = response.decode_encrypted_data().unwrap();
+        let data = encrypted_data.decrypt(&ecdh_key).unwrap();
+
+        // 7. Decode the response.
+        let response: contract::ContractQueryResponse<Response> = Decode::decode(&mut &data[..]).unwrap();
+        info!("decoded response = {:?}", response);
+
+        // 8. check the nonce is match the one we sent.
+        assert_eq!(response.nonce, nonce);
+    }
     Ok(resp)
 }
 

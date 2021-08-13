@@ -41,3 +41,4 @@ phala-pallets = { path = "../../pallets/phala" }
 phala-trie-storage = { path = "../../crates/phala-trie-storage" }
 phala-node-rpc-ext = { path = "../../crates/phala-node-rpc-ext" }
 phactory-api = { path = "../../crates/phactory/api" }
+phala-crypto = { path = "../../crates/phala-crypto" }
