@@ -648,6 +648,76 @@ async fn init_runtime(
             is_parachain,
         ))
         .await?;
+
+    // Test contract query RPC
+    {
+        use codec::Encode;
+        use enclave_api::crypto::EncryptedData;
+        use phala_crypto::sr25519::KDF;
+        use phala_types::contract;
+
+        // Types are copied from the contract code in pruntime. Contracts should be defined in a seperate crate in the future.
+        type Balance = u128;
+        #[derive(Encode, Decode, Debug, Clone)]
+        pub enum Request {
+            FreeBalance,
+            TotalIssuance,
+        }
+
+        #[derive(Encode, Decode, Debug)]
+        pub enum Response {
+            FreeBalance { balance: Balance },
+            TotalIssuance { total_issuance: Balance },
+            Error(String),
+        }
+
+        // 1. Create the contract defined query data.
+        let data = Request::TotalIssuance;
+
+        // 2. Make ContractQuery
+        let id = contract::id256(contract::BALANCES);
+        let nonce = [1; 32]; // NOTE: You should generate a random nonce.
+        let head = contract::ContractQueryHead { id, nonce };
+        let query = contract::ContractQuery { head, data };
+        info!("query = {:?}", query);
+
+        // 3. Encrypt the ContractQuery.
+        let (pair, _) = sp_core::sr25519::Pair::generate();
+        let key = pair.derive_ecdh_key().unwrap();
+        let remote_pubkey = resp.decode_ecdh_public_key()?;
+        let iv = [1; 12]; // NOTE: You should generate a random iv;
+        let encrypted_data =
+            EncryptedData::encrypt(&key, &remote_pubkey.0, iv, &query.encode()).unwrap();
+
+        // 4. Sign the encrypted data.
+        let signature = prpc::Signature {
+            origin: pair.public().to_vec(),
+            signature_type: prpc::SignatureType::Sr25519 as _,
+            signature: pair.sign(&encrypted_data.encode()).0.to_vec()
+        };
+        info!("signature = {:?}", signature);
+
+        let request = prpc::ContractQueryRequest::new(encrypted_data, Some(signature));
+        info!("request = {:?}", request);
+
+        // 5. Do the RPC call.
+        let response = pr
+            .contract_query(request)
+            .await
+            .unwrap();
+
+        info!("raw response = {:?}", response);
+        // 6. Decrypt the response.
+        let encrypted_data = response.decode_encrypted_data().unwrap();
+        let data = encrypted_data.decrypt(&key).unwrap();
+
+        // 7. Decode the response.
+        let response: contract::ContractQueryResponse<Response> = Decode::decode(&mut &data[..]).unwrap();
+        info!("decoded response = {:?}", response);
+
+        // 8. check the nonce is match the one we sent.
+        assert_eq!(response.nonce, nonce);
+    }
     Ok(resp)
 }
 
