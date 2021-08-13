@@ -73,6 +73,7 @@ impl contracts::NativeContract for Balances {
         origin: MessageOrigin,
         cmd: Command,
     ) -> TransactionResult {
+        info!("handle command: origin={:?} cmd={:?}", origin, cmd);
         match cmd {
             Command::Transfer { dest, value } => {
                 let o = origin.account()?;

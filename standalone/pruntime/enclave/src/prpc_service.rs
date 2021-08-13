@@ -434,6 +434,32 @@ pub fn init_runtime(
             contracts::DATA_PLAZA,
             contracts::data_plaza::DataPlaza::new()
         );
+
+        // Secret MQ Test
+        {
+            // 1. Create the secret mq channel
+            let sender = MessageOrigin::Worker(id_pair.public());
+            //    The underlying raw mq channel
+            let mq = send_mq.channel(sender, id_pair.clone());
+            //    Optional, a topic to pubkey mapping function
+            let key_map = |_: &phala_mq::Path| Some(ecdh_pubkey.0);
+            let secret_mq = secret_channel::SecretMessageChannel::new(&local_ecdh_key, &mq, &key_map);
+
+            // 2. Prepare a message to be sent
+            let message = contracts::balances::Command::transfer(Default::default(), 42);
+            info!("message = {:?}", message);
+            // 3. Send the message
+            //    If we are sending a message to a contract, use the contract's topic.
+            let topic = contract::command_topic(contract::id256(contracts::BALANCES));
+            info!("topic = {:?}", topic);
+            info!("topic str = {:?}", String::from_utf8_lossy(&topic));
+            //    This will call the key_map function defined above to get the public key of the topic.
+            let pubkey = secret_mq.pubkey_for_topic(&topic).unwrap();
+
+            secret_mq.sendto(topic.clone(), &message, None);
+            secret_mq.sendto(topic, &message, Some(&pubkey));
+            info!("A balance transfer message sent out");
+        }
     }
 
     let mut runtime_state = RuntimeState {
