@@ -708,11 +708,16 @@ async fn init_runtime(
         // 3. Encrypt the ContractQuery.
 
         let ecdh_key = sp_core::sr25519::Pair::generate().0.derive_ecdh_key().unwrap();
+        info!("sender ecdh sk = {}", hex::encode(ecdh_key.secret()));
+        info!("sender ecdh pk = {}", hex::encode(ecdh_key.public()));
 
         let remote_pubkey = resp.decode_ecdh_public_key()?;
         let iv = [1; 12]; // NOTE: You should generate a random iv;
         let encrypted_data =
             EncryptedData::encrypt(&ecdh_key, &remote_pubkey.0, iv, &query.encode()).unwrap();
+        info!("sender ecdh pk = {}", hex::encode(remote_pubkey.0));
+        info!("iv = {}", hex::encode(iv));
+        info!("encrypted ContractQuery = {:?}", encrypted_data);
 
         // 4. Sign the encrypted data.
         // 4.1 Make the root certificate.
@@ -722,6 +727,7 @@ async fn init_runtime(
         };
         let root_cert = prpc::Certificate::new(root_cert_body, None);
         info!("root_key = {:?}", root_key.public().0);
+        info!("root_cert = {:?}", root_cert);
 
         // 4.2 Generate a temporary key pair and sign it with root key.
         let (key_g, _) = sp_core::sr25519::Pair::generate();
@@ -736,6 +742,7 @@ async fn init_runtime(
             signature: root_key.sign(&data_cert_body.encode()).0.to_vec(),
         };
         let data_cert = prpc::Certificate::new(data_cert_body, Some(Box::new(cert_signature)));
+        info!("data_cert = {:?}", data_cert);
         let data_signature = prpc::Signature {
             signed_by: Some(Box::new(data_cert)),
             signature_type: prpc::SignatureType::Sr25519 as _,

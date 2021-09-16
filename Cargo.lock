@@ -5848,6 +5848,7 @@ dependencies = [
  "pallet-indices",
  "parity-scale-codec",
  "phactory-api",
+ "phala-crypto",
  "phala-node-rpc-ext",
  "phala-pallets",
  "phala-trie-storage",
