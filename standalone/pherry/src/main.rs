@@ -706,8 +706,10 @@ async fn init_runtime(
         info!("query = {:?}", query);
 
         // 3. Encrypt the ContractQuery.
-
-        let ecdh_key = sp_core::sr25519::Pair::generate().0.derive_ecdh_key().unwrap();
+        let frontend_seed = [0; 32];
+        let ecdh_key = sp_core::sr25519::Pair::from_seed(&frontend_seed)
+            .derive_ecdh_key()
+            .unwrap();
         info!("sender ecdh sk = {}", hex::encode(ecdh_key.secret()));
         info!("sender ecdh pk = {}", hex::encode(ecdh_key.public()));
 
@@ -715,26 +717,32 @@ async fn init_runtime(
         let iv = [1; 12]; // NOTE: You should generate a random iv;
         let encrypted_data =
             EncryptedData::encrypt(&ecdh_key, &remote_pubkey.0, iv, &query.encode()).unwrap();
-        info!("sender ecdh pk = {}", hex::encode(remote_pubkey.0));
+        info!("remote ecdh pk = {}", hex::encode(remote_pubkey.0));
         info!("iv = {}", hex::encode(iv));
         info!("encrypted ContractQuery = {:?}", encrypted_data);
 
         // 4. Sign the encrypted data.
         // 4.1 Make the root certificate.
-        let (root_key, _) = sp_core::sr25519::Pair::generate();
+        let root_seed = [1; 32];
+        let root_key = sp_core::sr25519::Pair::from_seed(&root_seed);
         let root_cert_body = CertificateBody {
-            pubkey: root_key.public().to_vec(), ttl: u32::MAX, config_bits: 0
+            pubkey: root_key.public().to_vec(),
+            ttl: u32::MAX,
+            config_bits: 0,
         };
         let root_cert = prpc::Certificate::new(root_cert_body, None);
         info!("root_key = {:?}", root_key.public().0);
         info!("root_cert = {:?}", root_cert);
 
         // 4.2 Generate a temporary key pair and sign it with root key.
-        let (key_g, _) = sp_core::sr25519::Pair::generate();
+        let data_seed = [2; 32];
+        let key_g = sp_core::sr25519::Pair::from_seed(&data_seed);
         info!("key_g = {:?}", key_g.public().0);
 
         let data_cert_body = CertificateBody {
-            pubkey: key_g.public().to_vec(), ttl: u32::MAX, config_bits: 0
+            pubkey: key_g.public().to_vec(),
+            ttl: u32::MAX,
+            config_bits: 0,
         };
         let cert_signature = prpc::Signature {
             signed_by: Some(Box::new(root_cert)),
@@ -754,10 +762,7 @@ async fn init_runtime(
         info!("request = {:?}", request);
 
         // 5. Do the RPC call.
-        let response = pr
-            .contract_query(request)
-            .await
-            .unwrap();
+        let response = pr.contract_query(request).await.unwrap();
 
         info!("raw response = {:?}", response);
         // 6. Decrypt the response.
@@ -765,7 +770,8 @@ async fn init_runtime(
         let data = encrypted_data.decrypt(&ecdh_key).unwrap();
 
         // 7. Decode the response.
-        let response: contract::ContractQueryResponse<Response> = Decode::decode(&mut &data[..]).unwrap();
+        let response: contract::ContractQueryResponse<Response> =
+            Decode::decode(&mut &data[..]).unwrap();
         info!("decoded response = {:?}", response);
 
         // 8. check the nonce is match the one we sent.
@@ -1094,7 +1100,11 @@ fn preprocess_args(args: &mut Args) {
     }
     if args.longevity > 0 {
         assert!(args.longevity >= 4, "Option --longevity must be 0 or >= 4.");
-        assert_eq!(args.longevity.count_ones(), 1, "Option --longevity must be power of two.");
+        assert_eq!(
+            args.longevity.count_ones(),
+            1,
+            "Option --longevity must be power of two."
+        );
     }
 }
 
