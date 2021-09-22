@@ -79,6 +79,7 @@ fixed-macro = { version = "1.1", default-features = false, git = "https://github
 # transaction-builder = { path = "../../../diem/language/transaction-builder", version = "0.1.0"}
 
 # for network service
+surf = { version = "2.3.1", default-features = false, features = ["h1-client-rustls"] }
 futures = { version = "0.3.17", default-features = false }
 async-io = { version = "1.6.0" }
 async-executor = { version = "1.4.1" }
