@@ -1,5 +1,6 @@
 mod gk;
 mod master_key;
+mod ip_report_example;
 
 use crate::{benchmark, types::BlockInfo};
 use anyhow::Result;
@@ -387,6 +388,7 @@ impl<Platform: pal::Platform> System<Platform> {
     }
 
     pub fn process_messages(&mut self, block: &mut BlockInfo) -> anyhow::Result<()> {
+        ip_report_example::process_block(block.block_number, &self.egress, block.side_task_man);
         loop {
             let ok = phala_mq::select! {
                 message = self.system_events => match message {
