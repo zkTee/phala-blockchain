@@ -1,7 +1,8 @@
 use anyhow::Result;
 use log::info;
 use parity_scale_codec::{Decode, Encode};
-use phala_mq::MessageOrigin;
+use phala_mq::{contract_id256, MessageOrigin};
+use phala_types::contract::command_topic;
 use serde::{Deserialize, Serialize};
 use serde_json;
 
@@ -10,6 +11,7 @@ use surf;
 use super::{TransactionError, TransactionResult};
 use crate::contracts;
 use crate::contracts::{AccountId, NativeContext};
+use crate::secret_channel::Payload;
 use crate::side_task::async_side_task::AsyncSideTask;
 extern crate runtime as chain;
 
@@ -32,10 +34,12 @@ type Command = BtcPriceBotCommand;
 ///
 /// For the basic functionalities of contract, refer to `guess_number.rs`.
 
+#[derive(Default)]
 pub struct BtcPriceBot {
     owner: AccountId,
     bot_token: String,
     chat_id: String,
+    price: String,
 }
 
 /// The Queries to this contract
@@ -52,6 +56,8 @@ pub enum Request {
     /// Query the identifier to target chat
     /// refer to: https://core.telegram.org/bots/api#sendmessage
     QueryChatId,
+    /// Query the cached BTC price
+    QueryPrice,
 }
 
 /// The Query results
@@ -60,6 +66,7 @@ pub enum Response {
     Owner(AccountId),
     BotToken(String),
     ChatId(String),
+    Price(String),
 }
 
 #[derive(Encode, Decode, Debug)]
@@ -70,11 +77,7 @@ pub enum Error {
 
 impl BtcPriceBot {
     pub fn new() -> Self {
-        BtcPriceBot {
-            owner: Default::default(),
-            bot_token: Default::default(),
-            chat_id: Default::default(),
-        }
+        Default::default()
     }
 }
 
@@ -115,22 +118,18 @@ impl contracts::NativeContract for BtcPriceBot {
     ) -> TransactionResult {
         info!("Command received: {:?}", &cmd);
 
-        // we want to limit the sender who can use the Commands to the pre-define root account
-        let sender = match &origin {
-            MessageOrigin::AccountId(account) => AccountId::from(*account.as_fixed_bytes()),
-            _ => return Err(TransactionError::BadOrigin),
-        };
         let alice = contracts::account_id_from_hex(ALICE)
             .expect("should not failed with valid address; qed.");
         match cmd {
             Command::SetOwner { owner } => {
-                if sender != alice {
+                if origin.account()? != alice {
                     return Err(TransactionError::BadOrigin);
                 }
                 self.owner = AccountId::from(*owner.as_fixed_bytes());
                 Ok(())
             }
             Command::SetupBot { token, chat_id } => {
+                let sender = origin.account()?;
                 if sender != alice && sender != self.owner {
                     return Err(TransactionError::BadOrigin);
                 }
@@ -139,6 +138,7 @@ impl contracts::NativeContract for BtcPriceBot {
                 Ok(())
             }
             Command::ReportBtcPrice => {
+                let sender = origin.account()?;
                 if sender != alice && sender != self.owner {
                     return Err(TransactionError::BadOrigin);
                 }
@@ -157,6 +157,9 @@ impl contracts::NativeContract for BtcPriceBot {
                 // Report the result after 2 blocks no matter whether has received the HTTP response
                 let block_number = context.block.block_number;
                 let duration = 2;
+
+                let mq = context.mq().clone();
+                let my_id = self.id();
 
                 let task = AsyncSideTask::spawn(
                     block_number,
@@ -210,15 +213,37 @@ impl contracts::NativeContract for BtcPriceBot {
                             }
                         };
                         log::info!("Side task sent BTC price: {}", result);
-                        result
+                        price.usd.to_string()
                     },
-                    |_result, _context| {
+                    move |price, _context| {
                         // You can send deterministic number of transactions in the result process
-                        // In this case, we don't send the price since it has already been reported to the TG bot above
+
+                        log::info!("Side task reporting price: {:?}", price);
+                        // Send the price to the contract to store it via mq, no matter whether it was success or fail.
+                        let command = Command::UpdateBtcPrice { price };
+                        let message = Payload::Plain(command);
+                        mq.sendto(&message, command_topic(contract_id256(my_id)));
                     },
                 );
                 context.block.side_task_man.add_task(task);
 
+                Ok(())
+            }
+            // Handle the price updating request from the side-task
+            Command::UpdateBtcPrice { price } => {
+                log::info!(
+                    "UpdateBtcPrice received, origin={}, price={:?}",
+                    origin,
+                    price
+                );
+
+                if origin != MessageOrigin::native_contract(self.id()) {
+                    return Err(TransactionError::BadOrigin);
+                }
+
+                if let Some(price) = price {
+                    self.price = price;
+                }
                 Ok(())
             }
         }
@@ -251,6 +276,7 @@ impl contracts::NativeContract for BtcPriceBot {
 
                 Ok(Response::ChatId(self.chat_id.clone()))
             }
+            Request::QueryPrice => Ok(Response::Price(self.price.clone())),
         }
     }
 }

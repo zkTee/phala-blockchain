@@ -256,6 +256,8 @@ pub mod messaging {
         SetupBot { token: String, chat_id: String },
         /// Let the Tg bot to report the current BTC price
         ReportBtcPrice,
+        /// Update the price stored inside the contract.
+        UpdateBtcPrice { price: Option<String> },
     }
 
     /// A fixed point number with 64 integer bits and 64 fractional bits.
