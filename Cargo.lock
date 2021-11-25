@@ -6673,6 +6673,7 @@ dependencies = [
  "phala-node-runtime",
  "phala-trie-storage",
  "phala-types",
+ "primitive-types",
  "prost 0.8.0",
  "prpc",
  "prpc-build",
