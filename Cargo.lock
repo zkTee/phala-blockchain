@@ -6724,6 +6724,7 @@ name = "phala-mq"
 version = "0.1.0"
 dependencies = [
  "derive_more",
+ "environmental",
  "hex",
  "log",
  "parity-scale-codec",
