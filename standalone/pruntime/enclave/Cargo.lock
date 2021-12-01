@@ -10,6 +10,7 @@ dependencies = [
  "anyhow",
  "async-io",
  "base64 0.13.0",
+ "blake2-rfc",
  "cpufeatures",
  "env_logger",
  "hex",
@@ -27,6 +28,7 @@ dependencies = [
  "phala-async-executor",
  "ppv-lite86",
  "rand 0.7.3",
+ "serde",
  "sgx_libc 1.1.4",
  "sgx_tcrypto",
  "sgx_tprotected_fs",
@@ -721,6 +723,33 @@ dependencies = [
  "parse-zoneinfo",
  "phf",
  "phf_codegen",
+]
+
+[[package]]
+name = "ciborium"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0c137568cc60b904a7724001b35ce2630fd00d5d84805fbb608ab89509d788f"
+dependencies = [
+ "ciborium-io",
+ "ciborium-ll",
+ "serde",
+]
+
+[[package]]
+name = "ciborium-io"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "346de753af073cc87b52b2083a506b38ac176a44cfb05497b622e27be899b369"
+
+[[package]]
+name = "ciborium-ll"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "213030a2b5a4e0c0892b6652260cf6ccac84827b83a85a534e178e3906c4cf1b"
+dependencies = [
+ "ciborium-io",
+ "half",
 ]
 
 [[package]]
@@ -1993,7 +2022,7 @@ dependencies = [
  "ink_metadata",
  "ink_prelude",
  "ink_primitives",
- "libsecp256k1 0.7.0",
+ "libsecp256k1",
  "num-traits",
  "parity-scale-codec",
  "paste",
@@ -2011,7 +2040,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06ae645f0d2ceab1ee6d1795d7edf7c73b40f4d14a96a81013eb93ce08d03d30"
 dependencies = [
  "ink_env",
- "libsecp256k1 0.7.0",
+ "libsecp256k1",
 ]
 
 [[package]]
@@ -2251,25 +2280,6 @@ checksum = "c7d73b3f436185384286bd8098d17ec07c9a7d2388a6599f824d8502b529702a"
 
 [[package]]
 name = "libsecp256k1"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9d220bc1feda2ac231cb78c3d26f27676b8cf82c96971f7aeef3d0cf2797c73"
-dependencies = [
- "arrayref",
- "base64 0.12.3",
- "digest 0.9.0",
- "hmac-drbg",
- "libsecp256k1-core 0.2.2",
- "libsecp256k1-gen-ecmult 0.2.1",
- "libsecp256k1-gen-genmult 0.2.1",
- "rand 0.7.3",
- "serde",
- "sha2 0.9.8",
- "typenum",
-]
-
-[[package]]
-name = "libsecp256k1"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0452aac8bab02242429380e9b2f94ea20cea2b37e2c1777a1358799bbe97f37"
@@ -2278,24 +2288,13 @@ dependencies = [
  "base64 0.13.0",
  "digest 0.9.0",
  "hmac-drbg",
- "libsecp256k1-core 0.3.0",
- "libsecp256k1-gen-ecmult 0.3.0",
- "libsecp256k1-gen-genmult 0.3.0",
+ "libsecp256k1-core",
+ "libsecp256k1-gen-ecmult",
+ "libsecp256k1-gen-genmult",
  "rand 0.8.4",
  "serde",
  "sha2 0.9.8",
  "typenum",
-]
-
-[[package]]
-name = "libsecp256k1-core"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d0f6ab710cec28cef759c5f18671a27dae2a5f952cdaaee1d8e2908cb2478a80"
-dependencies = [
- "crunchy",
- "digest 0.9.0",
- "subtle",
 ]
 
 [[package]]
@@ -2311,29 +2310,11 @@ dependencies = [
 
 [[package]]
 name = "libsecp256k1-gen-ecmult"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ccab96b584d38fac86a83f07e659f0deafd0253dc096dab5a36d53efe653c5c3"
-dependencies = [
- "libsecp256k1-core 0.2.2",
-]
-
-[[package]]
-name = "libsecp256k1-gen-ecmult"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3038c808c55c87e8a172643a7d87187fc6c4174468159cb3090659d55bcb4809"
 dependencies = [
- "libsecp256k1-core 0.3.0",
-]
-
-[[package]]
-name = "libsecp256k1-gen-genmult"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67abfe149395e3aa1c48a2beb32b068e2334402df8181f818d3aee2b304c4f5d"
-dependencies = [
- "libsecp256k1-core 0.2.2",
+ "libsecp256k1-core",
 ]
 
 [[package]]
@@ -2342,7 +2323,7 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3db8d6ba2cec9eacc40e6e8ccc98931840301f1006e95647ceb2dd5c3aa06f7c"
 dependencies = [
- "libsecp256k1-core 0.3.0",
+ "libsecp256k1-core",
 ]
 
 [[package]]
@@ -2836,13 +2817,13 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "libsecp256k1 0.6.0",
+ "libsecp256k1",
  "log",
  "pallet-contracts-primitives",
  "pallet-contracts-proc-macro",
  "parity-scale-codec",
  "pwasm-utils 0.18.2",
- "rand 0.7.3",
+ "rand 0.8.4",
  "scale-info",
  "serde",
  "smallvec",
@@ -3267,7 +3248,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-utility"
-version = "4.0.0-dev"
+version = "4.0.0-phala-dev"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -3503,6 +3484,7 @@ dependencies = [
  "bitcoin",
  "bitcoin_hashes",
  "chrono",
+ "ciborium",
  "csv-core",
  "derive_more",
  "finality-grandpa",
@@ -3541,8 +3523,6 @@ dependencies = [
  "rustls 0.19.1",
  "scopeguard",
  "serde",
- "serde_bytes",
- "serde_cbor",
  "serde_json",
  "sp-application-crypto",
  "sp-core",
@@ -3698,6 +3678,7 @@ dependencies = [
  "sp-npos-elections",
  "sp-offchain",
  "sp-runtime",
+ "sp-sandbox",
  "sp-session",
  "sp-staking",
  "sp-std",
@@ -3745,7 +3726,6 @@ dependencies = [
  "hex",
  "parity-scale-codec",
  "serde",
- "serde_bytes",
  "sp-core",
 ]
 
@@ -4709,15 +4689,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_bytes"
-version = "0.11.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16ae07dd2f88a366f15bd0632ba725227018c69a1c8550a927324f8eb8368bb9"
-dependencies = [
- "serde",
-]
-
-[[package]]
 name = "serde_cbor"
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5181,7 +5152,7 @@ dependencies = [
  "hex",
  "impl-serde",
  "lazy_static",
- "libsecp256k1 0.6.0",
+ "libsecp256k1",
  "log",
  "merlin",
  "num-traits",
@@ -5289,7 +5260,7 @@ version = "4.0.0-dev"
 dependencies = [
  "futures",
  "hash-db",
- "libsecp256k1 0.6.0",
+ "libsecp256k1",
  "log",
  "parity-scale-codec",
  "parking_lot",
