@@ -36,7 +36,7 @@ use phala_types::{
     messaging::{
         ContractKeyDistribution, DispatchContractKeyEvent, DispatchMasterKeyEvent,
         GatekeeperChange, GatekeeperLaunch, HeartbeatChallenge, KeyDistribution, MiningReportEvent,
-        NewGatekeeperEvent, SystemEvent, WorkerEvent, WorkerPinkReport,
+        NewGatekeeperEvent, SystemEvent, WorkerContractReport, WorkerEvent,
     },
     ContractPublicKey, EcdhPublicKey, MasterPublicKey, WorkerPublicKey,
 };
@@ -46,7 +46,8 @@ use sp_core::{hashing::blake2_256, sr25519, Pair, U256};
 
 pub type TransactionResult = Result<pink::runtime::ExecSideEffects, TransactionError>;
 
-#[derive(Encode, Decode, Debug, Clone)]
+#[derive(Encode, Decode, Debug, Clone, thiserror::Error)]
+#[error("TransactionError: {:?}", self)]
 pub enum TransactionError {
     BadInput,
     BadOrigin,
@@ -781,7 +782,16 @@ impl<Platform: pal::Platform> System<Platform> {
     ) {
         match event {
             ContractKeyDistribution::ContractKeyDistribution(dispatch_contract_key_event) => {
-                self.process_contract_key_distribution(block, origin, dispatch_contract_key_event);
+                if let Err(err) = self.process_contract_key_distribution(
+                    block,
+                    origin,
+                    dispatch_contract_key_event,
+                ) {
+                    error!(
+                        "Failed to process contract key distribution event: {:?}",
+                        err
+                    );
+                }
             }
         }
     }
@@ -823,10 +833,10 @@ impl<Platform: pal::Platform> System<Platform> {
         block: &mut BlockInfo,
         origin: MessageOrigin,
         event: DispatchContractKeyEvent<chain::Hash, chain::BlockNumber, chain::AccountId>,
-    ) -> Result<(), TransactionError> {
+    ) -> anyhow::Result<()> {
         if !origin.is_gatekeeper() {
             error!("Invalid origin {:?} sent a {:?}", origin, event);
-            return Err(TransactionError::BadOrigin);
+            return Err(TransactionError::BadOrigin.into());
         }
 
         // TODO(shelven): forget contract key after expiration time
@@ -834,9 +844,59 @@ impl<Platform: pal::Platform> System<Platform> {
         let contract_key = ContractKey(keypair);
         let contract_pubkey = contract_key.public();
         let contract_info = event.contract_info;
+        let group_id = chain::Hash::from_low_u64_be(contract_info.group_id);
+
         match contract_info.code_index {
-            CodeIndex::NativeCode(_contract_id) => {
-                // TODO(shelven): launch native code instance
+            CodeIndex::NativeCode(contract_id) => {
+                use contracts::*;
+
+                macro_rules! install {
+                    ($contract: expr) => {{
+                        let ecdh_key = contract_key
+                            .derive_ecdh_key()
+                            .expect("Derive ecdh_key should not fail");
+                        install_contract(
+                            &mut self.contracts,
+                            $contract,
+                            contract_key.0.clone(),
+                            ecdh_key,
+                            block,
+                            group_id,
+                        )?
+                    }};
+                }
+
+                let ecdh_key = contract_key
+                    .0
+                    .derive_ecdh_key()
+                    .or(Err(anyhow::anyhow!("Invalid contract key")))?;
+
+                let contract_id = match contract_id {
+                    DATA_PLAZA => install!(data_plaza::DataPlaza::new()),
+                    BALANCES => install!(balances::Balances::new()),
+                    ASSETS => install!(assets::Assets::new()),
+                    BTC_LOTTERY => {
+                        install!(btc_lottery::BtcLottery::new(Some(contract_key.0.to_raw_vec())))
+                    }
+                    WEB3_ANALYTICS => install!(web3analytics::Web3Analytics::new()),
+                    GEOLOCATION => install!(geolocation::Geolocation::new()),
+                    _ => {
+                        anyhow::bail!("Invalid contract id: {:?}", contract_id);
+                    }
+                };
+
+                self.contract_groups
+                    .get_group_or_default_mut(&group_id, &contract_key.0)
+                    .add_contract(contract_id);
+
+                let message = WorkerContractReport::ContractInstantiated {
+                    id: contract_id,
+                    group_id,
+                    deployer: phala_types::messaging::AccountId(contract_info.deployer.into()),
+                    pubkey: EcdhPublicKey(ecdh_key.public()),
+                };
+                info!("Native contract instantiate status: {:?}", message);
+                self.egress.push_message(&message);
             }
             CodeIndex::WasmCode(code_hash) => {
                 let code = chain_state::read_contract_code(block.storage, code_hash);
@@ -845,7 +905,6 @@ impl<Platform: pal::Platform> System<Platform> {
                         self.contract_keys
                             .insert(contract_pubkey, contract_key.clone());
 
-                        let group_id = chain::Hash::from_low_u64_be(contract_info.group_id);
                         let result = self.contract_groups.instantiate_contract(
                             group_id,
                             contract_info.deployer.clone(),
@@ -871,7 +930,7 @@ impl<Platform: pal::Platform> System<Platform> {
 
                                 apply_pink_side_effects(
                                     effects,
-                                    &group_id,
+                                    group_id,
                                     &mut self.contracts,
                                     group,
                                     block,
@@ -925,7 +984,7 @@ impl<Platform: pal::Platform> System<Platform> {
 
 pub fn handle_contract_command_result(
     result: TransactionResult,
-    group_id: Option<phala_mq::ContractGroupId>,
+    group_id: phala_mq::ContractGroupId,
     contracts: &mut ContractsKeeper,
     groups: &mut GroupKeeper,
     block: &mut BlockInfo,
@@ -938,24 +997,22 @@ pub fn handle_contract_command_result(
         }
         Ok(effects) => effects,
     };
-    if let Some(group_id) = group_id {
-        let group = match groups.get_group_mut(&group_id) {
-            None => {
-                error!(
-                    "BUG: pink group not found, it should always exsists, group_id={:?}",
-                    group_id
-                );
-                return;
-            }
-            Some(group) => group,
-        };
-        apply_pink_side_effects(effects, &group_id, contracts, group, block, egress);
-    }
+    let group = match groups.get_group_mut(&group_id) {
+        None => {
+            error!(
+                "BUG: contract group not found, it should always exsists, group_id={:?}",
+                group_id
+            );
+            return;
+        }
+        Some(group) => group,
+    };
+    apply_pink_side_effects(effects, group_id, contracts, group, block, egress);
 }
 
 pub fn apply_pink_side_effects(
     effects: ExecSideEffects,
-    group_id: &phala_mq::ContractGroupId,
+    group_id: phala_mq::ContractGroupId,
     contracts: &mut ContractsKeeper,
     group: &mut Group,
     block: &mut BlockInfo,
@@ -967,22 +1024,33 @@ pub fn apply_pink_side_effects(
         .expect("Derive ecdh_key should not fail");
 
     for (deployer, address) in effects.instantiated {
-        let pink = Pink::from_address(address, group_id.clone());
-        let id = pink.id();
-
-        install_contract(
+        let pink = Pink::from_address(address.clone(), group_id);
+        let id = install_contract(
             contracts,
             pink,
             contract_key.clone(),
             ecdh_key.clone(),
             block,
+            group_id,
         );
 
-        group.add_contract(id.clone());
-        let message = WorkerPinkReport::PinkInstantiated {
+        let id = match id {
+            Ok(id) => id,
+            Err(err) => {
+                error!("BUG: Install contract failed: {:?}", err);
+                error!(" address: {:?}", address);
+                error!(" group_id: {:?}", group_id);
+                error!(" deployer: {:?}", deployer);
+                continue;
+            }
+        };
+
+        group.add_contract(id);
+
+        let message = WorkerContractReport::ContractInstantiated {
             id,
-            group_id: group_id.clone(),
-            owner: phala_types::messaging::AccountId(deployer.into()),
+            group_id,
+            deployer: phala_types::messaging::AccountId(deployer.into()),
             pubkey: EcdhPublicKey(ecdh_key.public()),
         };
 
@@ -991,7 +1059,7 @@ pub fn apply_pink_side_effects(
     }
 
     for (address, event) in effects.pink_events {
-        let id = Pink::address_to_id(&address);
+        let id = Pink::address_to_id(&address).to_contract_id(&group_id);
         let contract = match contracts.get_mut(&id) {
             Some(contract) => contract,
             None => {
@@ -1020,18 +1088,24 @@ pub fn apply_pink_side_effects(
     }
 }
 
+#[must_use]
 pub fn install_contract<Contract>(
     contracts: &mut ContractsKeeper,
     contract: Contract,
     contract_key: sr25519::Pair,
     ecdh_key: EcdhKey,
     block: &mut BlockInfo,
-) where
+    group_id: phala_mq::ContractGroupId,
+) -> anyhow::Result<contracts::ContractId>
+where
     Contract: NativeContract + Send + 'static,
     <Contract as NativeContract>::Cmd: Send,
     contracts::AnyContract: From<contracts::NativeCompatContract<Contract>>,
 {
-    let contract_id = contract.id();
+    let contract_id = contract.id().to_contract_id(&group_id);
+    if contracts.get(&contract_id).is_some() {
+        return Err(anyhow::anyhow!("Contract already exists"));
+    }
     let sender = MessageOrigin::Contract(contract_id);
     let mq = block.send_mq.channel(sender, contract_key.into());
     let cmd_mq = SecretReceiver::new_secret(
@@ -1041,8 +1115,16 @@ pub fn install_contract<Contract>(
             .into(),
         ecdh_key.clone(),
     );
-    let wrapped = contracts::NativeCompatContract::new(contract, mq, cmd_mq, ecdh_key.clone());
+    let wrapped = contracts::NativeCompatContract::new(
+        contract,
+        mq,
+        cmd_mq,
+        ecdh_key.clone(),
+        group_id,
+        contract_id,
+    );
     contracts.insert(wrapped);
+    Ok(contract_id)
 }
 
 #[derive(Encode, Decode, Debug)]
