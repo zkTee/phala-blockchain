@@ -107,10 +107,8 @@ pub struct NativeContractWrapper<Con> {
 
 impl<Con> NativeContractWrapper<Con> {
     pub fn new(inner: Con, deployer: sp_core::H256, salt: &[u8], id: u32) -> Self {
-        let mut buffer = deployer.encode();
-        buffer.extend_from_slice(&id.to_be_bytes());
-        buffer.extend_from_slice(salt);
-        let id = sp_core::blake2_256(&buffer).into();
+        let encoded = (deployer, id, salt).encode();
+        let id = sp_core::blake2_256(&encoded).into();
         NativeContractWrapper { inner, id }
     }
 }
