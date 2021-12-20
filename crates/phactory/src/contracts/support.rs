@@ -65,10 +65,8 @@ impl From<&[u8; 32]> for NativeContractId {
 }
 
 impl NativeContractId {
-    pub fn to_contract_id(&self, group: &phala_mq::ContractGroupId) -> phala_mq::ContractId {
-        let mut buffer = group.encode();
-        self.0.encode_to(&mut buffer);
-        sp_core::blake2_256(&buffer).into()
+    pub fn to_contract_id(&self, group_id: &phala_mq::ContractGroupId) -> phala_mq::ContractId {
+        sp_core::blake2_256(&(group_id, &self.0).encode()).into()
     }
 }
 
