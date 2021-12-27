@@ -8,7 +8,7 @@ use crate::{
     types::{AccountId, BlockNumber, Hashing, ENOUGH, GAS_LIMIT},
 };
 
-use pallet_contracts_primitives::ContractExecResult;
+type ContractExecResult = pallet_contracts_primitives::ContractExecResult<crate::types::Balance>;
 
 pub type Storage = storage::Storage<storage::InMemoryBackend>;
 
@@ -68,6 +68,7 @@ impl Contract {
                 origin.clone(),
                 ENOUGH,
                 GAS_LIMIT,
+                None,
                 pallet_contracts_primitives::Code::Upload(code.into()),
                 input_data,
                 salt.clone(),
@@ -122,7 +123,7 @@ impl Contract {
         storage.execute_with(rollback, move || {
             System::set_block_number(block_number);
             Timestamp::set_timestamp(now);
-            Contracts::bare_call(origin, addr, 0, GAS_LIMIT, input_data, true)
+            Contracts::bare_call(origin, addr, 0, GAS_LIMIT, None, input_data, true)
         })
     }
 
