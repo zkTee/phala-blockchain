@@ -29,6 +29,7 @@ scale-info = { version = "1.0", default-features = false, features = ["derive", 
 parity-wasm = { version = "0.41.0", default-features = false }
 pwasm-utils = { version = "0.16", default-features = false }
 wasmi-validation = { version = "0.3.0", default-features = false }
+hash-db = "0.15.2"
 
 paste = "1.0"
 pretty_assertions = "0.7.2"

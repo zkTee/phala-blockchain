@@ -46,5 +46,9 @@ pub mod pallet {
         pub fn set_group_id(group_id: &[u8]) {
             <GroupId<T>>::put(group_id.to_vec());
         }
+
+        pub fn group_id() -> Vec<u8> {
+            <GroupId<T>>::get()
+        }
     }
 }
