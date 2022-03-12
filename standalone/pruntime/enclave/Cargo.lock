@@ -25,14 +25,14 @@ dependencies = [
  "phala-async-executor",
  "ppv-lite86",
  "rand 0.7.3",
- "sgx_libc 1.1.3",
+ "sgx_libc",
  "sgx_tcrypto",
  "sgx_tprotected_fs",
- "sgx_trts 1.1.3",
+ "sgx_trts",
  "sgx_tse",
  "sgx_tseal",
  "sgx_tstd",
- "sgx_types 1.1.3",
+ "sgx_types",
  "sgx_unwind",
 ]
 
@@ -132,7 +132,7 @@ version = "0.7.18"
 source = "git+https://github.com/Phala-Network/aho-corasick-sgx.git?branch=phala#942a3c473cbf8d7e1a6fa066b5fd9c8681295882"
 dependencies = [
  "memchr",
- "sgx_trts 1.1.3",
+ "sgx_trts",
 ]
 
 [[package]]
@@ -1739,7 +1739,7 @@ name = "httparse"
 version = "1.5.1"
 source = "git+https://github.com/Phala-Network/httparse-sgx.git?branch=phala#2feac740e644c8c747bfe51da76fb42cb3a1b951"
 dependencies = [
- "sgx_trts 1.1.3",
+ "sgx_trts",
 ]
 
 [[package]]
@@ -3341,9 +3341,10 @@ dependencies = [
 
 [[package]]
 name = "ppv-lite86"
-version = "0.2.10"
+version = "0.2.16"
+source = "git+https://github.com/Phala-Network/cryptocorrosion-sgx.git?branch=phala#3db23e039fb18647c09d95768b97a2ba82910345"
 dependencies = [
- "sgx_trts 1.1.3 (git+https://github.com/Phala-Network/incubator-teaclave-sgx-sdk.git?branch=phala)",
+ "sgx_trts",
 ]
 
 [[package]]
@@ -4092,7 +4093,7 @@ version = "1.1.3"
 dependencies = [
  "cc",
  "sgx_build_helper",
- "sgx_libc 1.1.3",
+ "sgx_libc",
 ]
 
 [[package]]
@@ -4107,54 +4108,37 @@ version = "1.1.3"
 name = "sgx_libc"
 version = "1.1.3"
 dependencies = [
- "sgx_types 1.1.3",
-]
-
-[[package]]
-name = "sgx_libc"
-version = "1.1.3"
-source = "git+https://github.com/Phala-Network/incubator-teaclave-sgx-sdk.git?branch=phala#dc9d673a3603a9fc09f7b61d7a188df89ab8d723"
-dependencies = [
- "sgx_types 1.1.3 (git+https://github.com/Phala-Network/incubator-teaclave-sgx-sdk.git?branch=phala)",
+ "sgx_types",
 ]
 
 [[package]]
 name = "sgx_tcrypto"
 version = "1.1.3"
 dependencies = [
- "sgx_types 1.1.3",
+ "sgx_types",
 ]
 
 [[package]]
 name = "sgx_tprotected_fs"
 version = "1.1.3"
 dependencies = [
- "sgx_trts 1.1.3",
- "sgx_types 1.1.3",
+ "sgx_trts",
+ "sgx_types",
 ]
 
 [[package]]
 name = "sgx_trts"
 version = "1.1.3"
 dependencies = [
- "sgx_libc 1.1.3",
- "sgx_types 1.1.3",
-]
-
-[[package]]
-name = "sgx_trts"
-version = "1.1.3"
-source = "git+https://github.com/Phala-Network/incubator-teaclave-sgx-sdk.git?branch=phala#dc9d673a3603a9fc09f7b61d7a188df89ab8d723"
-dependencies = [
- "sgx_libc 1.1.3 (git+https://github.com/Phala-Network/incubator-teaclave-sgx-sdk.git?branch=phala)",
- "sgx_types 1.1.3 (git+https://github.com/Phala-Network/incubator-teaclave-sgx-sdk.git?branch=phala)",
+ "sgx_libc",
+ "sgx_types",
 ]
 
 [[package]]
 name = "sgx_tse"
 version = "1.1.3"
 dependencies = [
- "sgx_types 1.1.3",
+ "sgx_types",
 ]
 
 [[package]]
@@ -4162,9 +4146,9 @@ name = "sgx_tseal"
 version = "1.1.3"
 dependencies = [
  "sgx_tcrypto",
- "sgx_trts 1.1.3",
+ "sgx_trts",
  "sgx_tse",
- "sgx_types 1.1.3",
+ "sgx_types",
 ]
 
 [[package]]
@@ -4175,21 +4159,16 @@ dependencies = [
  "sgx_alloc",
  "sgx_backtrace_sys",
  "sgx_demangle",
- "sgx_libc 1.1.3",
+ "sgx_libc",
  "sgx_tprotected_fs",
- "sgx_trts 1.1.3",
- "sgx_types 1.1.3",
+ "sgx_trts",
+ "sgx_types",
  "sgx_unwind",
 ]
 
 [[package]]
 name = "sgx_types"
 version = "1.1.3"
-
-[[package]]
-name = "sgx_types"
-version = "1.1.3"
-source = "git+https://github.com/Phala-Network/incubator-teaclave-sgx-sdk.git?branch=phala#dc9d673a3603a9fc09f7b61d7a188df89ab8d723"
 
 [[package]]
 name = "sgx_unwind"
