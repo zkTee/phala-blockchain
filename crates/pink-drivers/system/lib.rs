@@ -50,6 +50,11 @@ mod system {
             Err(Error::BadOrigin)
         }
 
+        #[ink(message)]
+        pub fn is_admin(&self, contract_id: AccountId) -> Result<bool> {
+            Ok(self.administrators.contains(&contract_id))
+        }
+
         fn ensure_owner_or_admin(&self) -> Result<AccountId> {
             self.ensure_owner().or_else(|_| self.ensure_admin())
         }

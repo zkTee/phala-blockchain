@@ -36,6 +36,10 @@ mod sidevm_deployer {
             self.whitelist.insert(contract, &());
             Ok(())
         }
+        #[ink(message)]
+        pub fn in_whitelist(&self, contract: AccountId) -> Result<bool> {
+            Ok(self.whitelist.contains(&contract))
+        }
     }
 
     impl pink::system::SidevmOperation for SidevmOp {
